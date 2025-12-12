@@ -63,8 +63,27 @@ parsed_df = string_df.select(
 print("parsed df schema: ")
 parsed_df.printSchema()
 
+critical_cols = ["open", "high", "low", "close"]
+df = parsed_df.dropna(subset=critical_cols)
+
+df = df.withColumn(
+    "volume",
+    when(col("volume").isNull(), lit(0)).otherwise(col("volume"))
+)
+string_cols = ["sector", "source", "topic"]
+df = df.fillna("UNKNOWN", subset=string_cols)
+df = df.withColumn(
+    "ingestion_time",
+    when(
+        col("ingestion_time").isNotNull(),
+        to_timestamp(col("ingestion_time"))
+    ).otherwise(
+        current_timestamp()
+    )
+)
+
 # Show data (for testing)
-query = parsed_df.writeStream \
+query = df.writeStream \
     .outputMode("append") \
     .format("console") \
     .start()
