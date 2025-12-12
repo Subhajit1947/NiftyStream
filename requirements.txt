@@ -1,0 +1,27 @@
+# --- Core Dependencies ---
+kafka-python==2.0.2
+yfinance==0.2.38
+pandas==1.5.3        
+numpy==1.24.4
+schedule==1.2.1
+
+# --- Spark Processing ---
+pyspark==3.5.1
+delta-spark==3.2.0
+
+# --- Database ---
+psycopg2-binary==2.9.9
+redis==5.0.5
+sqlalchemy==2.0.30
+
+# --- Utilities ---
+python-dotenv==1.0.1
+requests==2.31.0
+pytz==2024.2
+python-dateutil==2.9.0.post0
+
+# --- Monitoring & Logging ---
+structlog==24.2.0
+colorlog==6.8.2
+
+
