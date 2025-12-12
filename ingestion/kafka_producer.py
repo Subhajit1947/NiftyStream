@@ -4,13 +4,15 @@ from kafka import KafkaProducer
 import schedule
 from datetime import datetime
 from monitoring.logging_config import setup_logger
-from .yfinance_poller import fetch_stock_data
+from .yfinance_mock_poller import generate_mock_yfinance_data as fetch_stock_data
 from .nifty_symbol import sector_portfolios
-
+import os
 logger=setup_logger()
 
 class StockDataProducer:
-    def __init__(self,bootstrap_servers='localhost:9092'):
+    def __init__(self):
+        bootstrap_servers=os.getenv("KAFKA_BOOTSTRAP_SERVERS","kafka:9092")
+        logger.info(f"Attempting to connect to Kafka at: {bootstrap_servers}")
         self.producer=KafkaProducer(
             bootstrap_servers=bootstrap_servers,
             value_serializer=lambda v:json.dumps(v).encode('utf-8'),
@@ -25,11 +27,11 @@ class StockDataProducer:
                 message = {
                     "symbol": symbol,
                     "timestamp": index.isoformat(),
-                    "open": float(row['Open']),
-                    "high": float(row['High']),
-                    "low": float(row['Low']),
-                    "close": float(row['Close']),
-                    "volume": int(row['Volume']),
+                    "open": row['Open'],
+                    "high": row['High'],
+                    "low": row['Low'],
+                    "close": row['Close'],
+                    "volume": row['Volume'],
                     "sector": sector,
                     "source": "yfinance",
                     "ingestion_time": datetime.utcnow().isoformat()
@@ -42,10 +44,9 @@ class StockDataProducer:
         return messages_sent
     def run_fetch_and_send(self):
         logger.info("Starting data fetch cycle...")
-        stock_data=fetch_stock_data(
-            sector_data=sector_portfolios    
-        )
+        stock_data=fetch_stock_data(sector_portfolios)
         if stock_data:
+            logger.info(f"stock_data: {stock_data}")
             count=self.process_and_send_to_kafka(stock_data_dict=stock_data)
             logger.info(f"Cycle complete. Processed {len(stock_data)} symbols, {count} records")
         else:
@@ -60,5 +61,6 @@ def main():
     while True:  
         schedule.run_pending()  
         time.sleep(1) 
+
 if __name__ == "__main__":
     main()
