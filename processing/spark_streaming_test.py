@@ -2,9 +2,11 @@
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import *
 from pyspark.sql.types import *
+import os
 # from monitoring.logging_config import setup_logger
 # logger=setup_logger()
 # Create Spark session
+from business_indicator import claculate_business_indicator
 spark = SparkSession.builder \
     .appName("NiftyStreamTest") \
     .master("spark://spark-master:7077") \
@@ -71,7 +73,7 @@ df = df.withColumn(
     when(col("volume").isNull(), lit(0)).otherwise(col("volume"))
 )
 string_cols = ["sector", "source", "topic"]
-df = df.fillna("UNKNOWN", subset=string_cols)
+df = df.dropna(subset=string_cols)
 df = df.withColumn(
     "ingestion_time",
     when(
@@ -82,10 +84,41 @@ df = df.withColumn(
     )
 )
 
-# Show data (for testing)
+
+
+def write_to_both(batch_df, batch_id):
+    try:
+        print(f"\n{'='*60}")
+        print(f"Processing Batch {batch_id}")
+        print(f"{'='*60}")
+        
+        print(f"1. Batch size: {batch_df.count()} records")
+        
+        if batch_df.count() == 0:
+            print("⚠️ Empty batch, skipping...")
+            return
+        result = claculate_business_indicator(batch_df)
+        result.show()
+        
+    except Exception as e:
+        print(f"Error processing batch {batch_id}: {e}")
+        batch_df.select("symbol", "timestamp", "close").show(5, truncate=False)
+    
+
+
+
 query = df.writeStream \
     .outputMode("append") \
-    .format("console") \
+    .foreachBatch(write_to_both) \
     .start()
 
 query.awaitTermination()
+
+
+# Show data (for testing)
+# query = df.writeStream \
+#     .outputMode("complete") \
+#     .format("console") \
+#     .start()
+
+# query.awaitTermination()
