@@ -28,6 +28,21 @@ services:
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
       KAFKA_DELETE_TOPIC_ENABLE: "true"
       KAFKA_CREATE_TOPICS: "raw:1:1"
+  postgres:
+    <<: *base-service
+    build:
+      context: .
+      dockerfile: ./docker/postgres/Dockerfile
+    container_name: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/opt/postgresql/data
+    environment:
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      
   spark-master:
     <<: *base-service
     build:
@@ -47,6 +62,16 @@ services:
       - PYTHONPATH=/opt/apps
       - SPARK_JARS_PACKAGES=org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262
       - HOME=/home/spark
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_URL =${POSTGRES_URL}
+      - ALERT_TABLE=${ALERT_TABLE}
+      - STOCK_TABLE=${STOCK_TABLE}
+    env_file:
+      - ./.env 
     volumes:
       - ./processing:/opt/apps
 
@@ -70,6 +95,16 @@ services:
       - PYTHONPATH=/opt/apps/
       - SPARK_JARS_PACKAGES=org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262
       - HOME=/home/spark
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_URL =${POSTGRES_URL}
+      - ALERT_TABLE=${ALERT_TABLE}
+      - STOCK_TABLE=${STOCK_TABLE}
+    env_file:
+      - ./.env 
     volumes:
       - ./processing:/opt/apps
   ingestion-service:
@@ -95,8 +130,44 @@ services:
       echo 'Starting Kafka producer...' &&
       python -m ingestion.kafka_producer
       "
+  dashboard:
+    <<: *base-service
+    build:
+      context: .
+      dockerfile: docker/dashboard/Dockerfile  # Changed path
+    container_name: stock-dashboard
+    ports:
+      - "8501:8501"  # Streamlit default port
+    depends_on:
+      - postgres  # Dashboard needs PostgreSQL
+    environment:
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - STREAMLIT_SERVER_PORT=${STREAMLIT_SERVER_PORT}
+      - STREAMLIT_SERVER_ADDRESS=${STREAMLIT_SERVER_ADDRESS}
+      - STREAMLIT_THEME=${STREAMLIT_THEME}
+      - STREAMLIT_BROWSER_GATHER_USAGE_STATS=${STREAMLIT_BROWSER_GATHER_USAGE_STATS}
+    env_file:
+      - ./.env  # For POSTGRES_USER and POSTGRES_PASSWORD
+    volumes:
+      - ./dashboard:/app/dashboard
+    command: >
+      sh -c "
+      echo 'Waiting for PostgreSQL to be ready...' &&
+      sleep 10 &&
+      echo 'Starting Streamlit dashboard...' &&
+      cd /app/dashboard &&
+      streamlit run app.py --server.port=8501 --server.address=0.0.0.0
+      "
+
 
     
 networks:
   niftystream-network:
     driver: bridge
+
+volumes:
+  postgres_data:
