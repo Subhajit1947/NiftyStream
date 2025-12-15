@@ -38,9 +38,10 @@ def claculate_business_indicator(df):
     
     #calculate vwap(for the day)
     window_vwap=Window.partitionBy("symbol",to_date("timestamp")).orderBy("timestamp")
-    df.withColumn("cumulative_volume",sum("volume").over(window_vwap))\
+    df=df.withColumn("cumulative_volume",sum("volume").over(window_vwap))\
         .withColumn("cumulative_price_volume",sum(col("close")*col("volume")).over(window_vwap))\
         .withColumn("vwap",round(col("cumulative_price_volume")/col("cumulative_volume"),2))
+    df = df.withColumn("processing_time", current_timestamp())
     return df
         
 
