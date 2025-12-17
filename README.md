@@ -19,7 +19,7 @@ Python, Kafka, Apache Spark, PostgreSQL, Docker, Docker Compose, Streamlit (dash
 
 ## Architecture
 
-![NiftyStream Architecture](docs\stock_data_pipeline_architechture.png)
+![NiftyStream Architecture](https://github.com/Subhajit1947/NiftyStream/blob/main/docs/stock_data_pipeline_architechture.png)
 
 
 ## Setup Guide (Local)
